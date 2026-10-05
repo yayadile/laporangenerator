@@ -29,6 +29,7 @@ def _ensure_tool_path():
     """Install per-user (tanpa admin) tidak selalu masuk PATH shell."""
     candidates = [
         Path.home() / "AppData/Local/Programs/pandoc",
+        Path.home() / "AppData/Local/Pandoc",
         Path.home() / "AppData/Local/Programs/MiKTeX/miktex/bin/x64",
     ]
     path = os.environ.get("PATH", "")
