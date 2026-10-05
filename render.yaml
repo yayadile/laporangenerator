@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: report-generator-service
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore
+    envVars:
+      - key: PORT
+        value: 8080
+    services:
+  - type: web
+    name: typst-report-builder
+    env: python
+    buildCommand: |
+      # Install typst binary
+      curl -fsSL https://github.com/typst/typst/releases/latest/download/typst-x86_64-unknown-linux-musl.tar.xz | tar -xJ
+      mv typst-x86_64-unknown-linux-musl/typst /usr/local/bin/ || mv typst-x86_64-unknown-linux-musl/typst ./typst
+      pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0

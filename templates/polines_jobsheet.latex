@@ -1,0 +1,140 @@
+\documentclass[12pt, a4paper]{article}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{setspace}
+
+% --- Font: semua teks Times New Roman 12pt (documentclass 12pt), code tetap monospace ---
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\setmonofont[Scale=0.875]{Consolas}
+
+% --- Heading: seragam 12pt bold (label kosong - nomor sudah ada di markdown) ---
+\titleformat{\section}
+  {\normalfont\fontsize{12}{15}\bfseries\selectfont}{}{0em}{}
+\titleformat{\subsection}
+  {\normalfont\fontsize{12}{15}\bfseries\selectfont}{}{0em}{}
+\titleformat{\subsubsection}
+  {\normalfont\fontsize{12}{15}\bfseries\selectfont}{}{0em}{}
+\titleformat{\paragraph}
+  {\normalfont\fontsize{12}{15}\bfseries\selectfont}{}{0em}{}
+
+\onehalfspacing
+
+% Nomor section mengikuti judul di markdown (BAB I, 2.1, dst) -> jangan number ulang
+$if(numbersections)$
+\setcounter{secnumdepth}{5}
+$else$
+\setcounter{secnumdepth}{-\maxdimen}
+$endif$
+
+% --- Makro & paket bawaan pandoc (wajib ada di template kustom) ---
+% Tabel markdown (longtable/booktabs)
+\usepackage{longtable,booktabs,array}
+\usepackage{caption}
+\captionsetup[table]{skip=6pt}
+\newcounter{none}
+\usepackage{calc}
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+
+% Gambar: skala otomatis agar muat di halaman
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{%
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi%
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+\def\fps@figure{htbp}
+\makeatother
+
+% List rapat (tight list)
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+% Syntax highlighting untuk code block ber-label (python, dll)
+\usepackage{xcolor}
+$if(highlighting-macros)$
+$highlighting-macros$
+$endif$
+
+% --- Code block: kotak ber-border + wrap baris panjang biar tidak keluar margin ---
+% (fvextra: breaklines; framed: kotak fcolorbox yang pecah rapi antar halaman)
+\usepackage{framed}
+\usepackage{fvextra}
+\definecolor{shadecolor}{RGB}{245,245,245}
+\definecolor{codeborder}{RGB}{166,166,166}
+\DefineVerbatimEnvironment{verbatim}{Verbatim}{breaklines,breakanywhere}
+$if(highlighting-macros)$
+\RecustomVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\},breaklines,breakanywhere}
+$endif$
+% Kotak code: border abu + latar abu; MakeFramed memecah box per halaman
+\newenvironment{codebox}{%
+  \def\FrameCommand##1{\fboxsep=4pt \fcolorbox{codeborder}{shadecolor}{##1}}%
+  \MakeFramed{\advance\hsize-\width \FrameRestore}%
+}{\endMakeFramed}
+% Pandoc 3.12 mengosongkan Shaded ({}{}); arahkan ke kotak di atas
+\makeatletter
+\@ifundefined{Shaded}{}{\renewenvironment{Shaded}{\begin{codebox}}{\end{codebox}}}
+\makeatother
+% Bungkus verbatim polos (tanpa bahasa) dalam kotak yang sama
+\let\oldverbatim\verbatim
+\let\endoldverbatim\endverbatim
+\renewenvironment{verbatim}
+  {\begin{codebox}\oldverbatim}
+  {\endoldverbatim\end{codebox}}
+
+\begin{document}
+
+% --- HALAMAN JUDUL / COVER (semua teks 14pt) ---
+\begin{titlepage}
+    \centering
+    \fontsize{14}{17}\selectfont
+    
+    % Judul Atas
+    \textbf{LAPORAN PRAKTIKUM} \\[0.3cm]
+    \textbf{$matkul$} \\[0.3cm]
+    \textbf{$judul_jobsheet$} \\[1.5cm]
+
+    % Logo Polines
+    \includegraphics[width=6cm]{$logo$} \\[2cm]
+
+    % Informasi Dosen
+    Dosen: $dosen$ \\[0.5cm]
+    Disusun oleh \\[0.3cm]
+
+    % Identitas Mahasiswa
+    \begin{center}
+    \begin{tabular}{lll}
+        Nama & : & $author$ \\
+        NIM  & : & $nim$ \\
+        Kelas & : & $kelas$ \\
+    \end{tabular}
+    \end{center}
+
+    \vfill
+
+    % Footer Cover
+    \textbf{PROGRAM STUDI $prodi$} \\[0.1cm]
+    \textbf{JURUSAN $jurusan$} \\[0.1cm]
+    \textbf{POLITEKNIK NEGERI SEMARANG} \\[0.1cm]
+    \textbf{TAHUN $tahun$}
+
+\end{titlepage}
+
+\newpage
+
+% --- ISI LAPORAN (DARI MARKDOWN) ---
+$body$
+
+\end{document}
