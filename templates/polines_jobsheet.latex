@@ -6,6 +6,7 @@
 \usepackage{titlesec}
 \usepackage{hyperref}
 \usepackage{setspace}
+\usepackage{amsmath,amssymb}
 
 % --- Font: semua teks Times New Roman 12pt (documentclass 12pt), code tetap monospace ---
 \usepackage{fontspec}
@@ -90,9 +91,12 @@ $endif$
 % Bungkus verbatim polos (tanpa bahasa) dalam kotak yang sama
 \let\oldverbatim\verbatim
 \let\endoldverbatim\endverbatim
+% \begin{codebox} mengubah \@currenvir, fancyvrb ikut salah -> paksa nama env
+\makeatletter
 \renewenvironment{verbatim}
-  {\begin{codebox}\oldverbatim}
+  {\begin{codebox}\xdef\FV@EnvironName{verbatim}\oldverbatim}
   {\endoldverbatim\end{codebox}}
+\makeatother
 
 \begin{document}
 
