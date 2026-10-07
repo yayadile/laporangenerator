@@ -10,9 +10,7 @@ import sys
 from pathlib import Path
 
 import renderer
-from renderer import RenderError
-
-DEFAULT_FORMATS = ("pdf", "docx")
+from renderer import DEFAULT_FORMATS, RenderError
 
 
 def choose_option(prompt: str, options: list[str], new_hint: str = "") -> str:

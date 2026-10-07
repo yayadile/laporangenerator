@@ -9,6 +9,8 @@ import re
 import subprocess
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -39,19 +41,33 @@ def _ensure_tool_path():
             os.environ["PATH"] = path
 
 
-_ensure_tool_path()
+if os.name == "nt":
+    # di Linux/Docker tool sudah ada di PATH, tidak perlu diutak-atik
+    _ensure_tool_path()
 
 
-def load_static_metadata() -> dict:
+@lru_cache(maxsize=1)
+def _read_static_metadata() -> dict:
     with open(METADATA_FILE, encoding="utf-8") as f:
         return json.load(f)
 
 
-def load_dosen_map() -> dict:
+def load_static_metadata() -> dict:
+    """Salinan metadata statis (disk hanya dibaca sekali per proses)."""
+    return dict(_read_static_metadata())
+
+
+@lru_cache(maxsize=1)
+def _read_dosen_map() -> dict:
     if not DOSEN_MAP_FILE.exists():
         return {}
     with open(DOSEN_MAP_FILE, encoding="utf-8") as f:
-        return {k.upper(): v for k, v in json.load(f).items()}
+        return json.load(f)
+
+
+def load_dosen_map() -> dict:
+    """Salinan dosen map dengan key UPPER (disk hanya dibaca sekali)."""
+    return {k.upper(): v for k, v in _read_dosen_map().items()}
 
 
 def get_dosen(matkul: str) -> str:
@@ -185,12 +201,39 @@ def render_markdown(md_text: str, matkul: str, judul: str,
     base = sanitize_filename(
         f"{meta.get('author', '')}_{meta.get('nim', '')}_{judul}")
 
-    outputs = []
+    # PDF (xelatex) & DOCX (pandoc) tidak saling bergantung -> jalan paralel.
+    # Keduanya subprocess (I/O bound), jadi thread memberi speedup nyata:
+    # total waktu ~= tahap yang paling lambat (xelatex), bukan jumlah keduanya.
+    jobs = {}
     if "pdf" in formats:
-        outputs.append(_render_pdf(md_text, meta, out_dir / base))
+        jobs["pdf"] = (out_dir / base,)
     if "docx" in formats:
-        outputs.append(_render_docx(md_text, meta, out_dir / base))
-    return outputs
+        jobs["docx"] = (out_dir / base,)
+
+    results: dict[str, Path] = {}
+    if len(jobs) == 1:
+        kind, (base_path,) = next(iter(jobs.items()))
+        fn = _render_pdf if kind == "pdf" else _render_docx
+        results[kind] = fn(md_text, meta, base_path)
+    else:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = {
+                kind: pool.submit(
+                    _render_pdf if kind == "pdf" else _render_docx,
+                    md_text, meta, base_path)
+                for kind, (base_path,) in jobs.items()
+            }
+            errors = []
+            for kind, fut in futures.items():  # tunggu semua, baru putuskan
+                try:
+                    results[kind] = fut.result()
+                except RenderError as e:
+                    errors.append(e)
+            if errors:
+                raise errors[0]
+
+    # urutan selalu pdf, docx (kompatibel dengan perilaku lama)
+    return [results[k] for k in ("pdf", "docx") if k in results]
 
 
 def render_file(md_path: str | Path, matkul: str, judul: str,
