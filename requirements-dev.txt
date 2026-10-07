@@ -1,0 +1,8 @@
+# Dependency untuk tooling pengembangan / one-off scripts
+# (bukan bagian runtime API - lihat requirements.txt)
+
+# tools/compress_assets.py
+Pillow==12.3.0
+
+# make_reference.py -> generate templates/reference.docx
+python-docx==1.2.0
