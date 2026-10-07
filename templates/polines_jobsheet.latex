@@ -45,11 +45,14 @@ $endif$
 \makeatother
 
 % Gambar: skala otomatis agar muat di halaman
+% Catatan: sisakan ruang untuk caption + jarak float, kalau tidak
+% muncul warning "Float too large for page by ~24pt" (gambar + caption
+% melampaui tinggi teks).
 \makeatletter
 \newsavebox\pandoc@box
 \newcommand*\pandocbounded[1]{%
   \sbox\pandoc@box{#1}%
-  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempa{\dimexpr\textheight-50pt\relax}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
   \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
   \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi%
   \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
@@ -58,6 +61,17 @@ $endif$
 }
 \def\fps@figure{htbp}
 \makeatother
+
+% --- Anti "Too many unprocessed floats" ---------------------------------
+% Laporan bergambar banyak bisa menghabiskan antrean float LaTeX sehingga
+% render gagal total (error keras, bukan warning). \extrafloats bawaan
+% kernel LaTeX (>=2015) menambah slot antrean tanpa perlu paket tambahan.
+\extrafloats{100}
+\setcounter{totalnumber}{10}
+\setcounter{topnumber}{5}
+\setcounter{bottomnumber}{5}
+\setcounter{dbltopnumber}{5}
+\setlength{\intextsep}{8pt plus 2pt minus 2pt}
 
 % List rapat (tight list)
 \providecommand{\tightlist}{%
