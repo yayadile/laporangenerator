@@ -78,8 +78,16 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-`requirements.txt` berisi: `Flask`, `requests`, `python-docx`
-(`python-docx` dipakai untuk generate template DOCX, `requests` untuk script tools).
+`requirements.txt` berisi dependency **runtime API**: `Flask` + `gunicorn`.
+
+Tooling sekali-pakai ada di `requirements-dev.txt` (`Pillow` untuk
+`tools/compress_assets.py`, `python-docx` untuk `make_reference.py`,
+`websocket-client` untuk `tools/cdp_shoot.py`):
+
+```bash
+pip install -r requirements.txt        # wajib (API + CLI)
+pip install -r requirements-dev.txt    # opsional, hanya untuk tooling
+```
 
 ---
 
@@ -177,17 +185,23 @@ JSON
 Contoh dengan Python:
 
 ```python
-import json, requests
+import json
+from urllib import request
 
 md = open("raw-md/laporan-ctf-5007-idor.md", encoding="utf-8").read()
 
-r = requests.post("http://localhost:8080/generate", json={
+payload = json.dumps({
     "markdown": md,
     "matkul_folder": "ETHICAL HACKING",
     "judul": "LAB 03 IDOR",
     "export_formats": ["pdf", "docx"],
-})
-print(r.status_code, json.dumps(r.json(), indent=2, ensure_ascii=False))
+}).encode("utf-8")
+
+req = request.Request(
+    "http://localhost:8080/generate",
+    data=payload, headers={"Content-Type": "application/json"})
+with request.urlopen(req) as resp:
+    print(resp.status, json.dumps(json.load(resp), indent=2, ensure_ascii=False))
 ```
 
 **Respons sukses (200):**
@@ -214,6 +228,8 @@ laporangenerator/
 ├── cli.py                    # CLI interaktif & non-interaktif
 ├── renderer.py               # Core: markdown -> PDF/DOCX (dipakai cli & app)
 ├── make_reference.py         # (re)generate templates/reference.docx
+├── tools/
+│   └── compress_assets.py    # kompres screenshot assets/ (PSNR-gated)
 │
 ├── raw-md/                   # ➡ Taruh sini laporan markdown kamu
 │   └── laporan-ctf-5007-idor.md
@@ -224,15 +240,22 @@ laporangenerator/
 ├── assets/
 │   ├── logopolines.png         # Logo untuk cover
 │   └── ss/                     # Screenshot laporan
-├── output_matkul/               # ➡ Hasil render per matkul
+├── output_matkul/               # ➡ Hasil render per matkul (di-ignore git)
 │   └── ETHICAL HACKING/
 ├── sample_metadata.json         # Data cover default (nama, NIM, prodi, dll.)
 ├── dosen_map.json               # Pemetaan matkul -> dosen
 │
-├── requirements.txt
+├── requirements.txt             # runtime (Flask, gunicorn)
+├── requirements-dev.txt         # tooling (Pillow, python-docx, ...)
+├── .gitignore                   # output/data/cache/logs tidak masuk git
+├── .dockerignore                # konteks build image hanya file runtime
 ├── Dockerfile
 └── render.yaml                  # Konfigurasi deploy Render.com
 ```
+
+> **Tidak di-version-control:** `output_matkul/` (hasil render), `data/`
+> (dataset MNIST), `testing/`, `__pycache__/`, log & file cookie — semuanya
+> regenerable, jadi clone tetap ringan dan tidak ada biner numpuk di git.
 
 ---
 
@@ -395,16 +418,23 @@ docker build -t laporan-generator .
 docker run -p 8080:8080 -e PORT=8080 laporan-generator
 ```
 
-Image sudah termasuk Pandoc + `texlive-xetex`.
+Image sudah termasuk Pandoc + `texlive-xetex`. Konteks build dibatasi
+oleh `.dockerignore`, jadi `data/`, `output_matkul/`, `.git/` dan file
+tooling tidak ikut → build cepat dan image tidak kegemukan.
 
-> ⚠️ **Catatan font:** Linux tidak punya *Times New Roman*/*Consolas* bawaan.
-> Agar hasil PDF sama persis, tambahkan font tersebut ke image (mis. salin file
-> `.ttf` ke `/usr/share/fonts/truetype/` lalu `fc-cache -f`) sebelum build.
+> ℹ️ **Font di Linux:** image meng-alias *Times New Roman* → *Liberation Serif*
+> dan *Consolas* → *Liberation Mono* lewat `/etc/fonts/local.conf` (metrik sama,
+> hasil PDF tetap rapi). Kalau mau persis font Windows, salin `.ttf` ke
+> `/usr/share/fonts/truetype/` lalu jalankan `fc-cache -f`.
+
+`gunicorn` membaca env `PORT` (fallback 8080), jadi cocok untuk Render
+yang meng-inject port sendiri.
 
 ### Render.com
 
 `render.yaml` sudah tersedia (Docker-based, region Singapore, plan free).
-Upload repo ke Render dan biarkan yang handle — atau pakai CLI:
+**Port tidak di-hardcode** — Render meng-inject `PORT` dan dibaca oleh
+`gunicorn`. Upload repo ke Render dan biarkan yang handle — atau pakai CLI:
 
 ```bash
 render blueprint apply
@@ -425,6 +455,9 @@ render blueprint apply
 | Nomor bab dobel (`I. I. TUJUAN`) | Hapus nomor manual di judul — numbering LaTeX dimatikan, nomor harus kamu tulis sendiri di markdown. |
 | NIM terpotong di nama file | Jangan khawatir — titik di NIM sengaja dipertahankan (renderer tidak pakai `with_suffix`). |
 | Hasil DOCX styling-nya aneh | Regenerasi reference: `python make_reference.py` (jangan edit `reference.docx` manual). |
+| Warning `Float too large for page` | Template sudah menyisakan 50pt ruang untuk caption — kalau muncul lagi, gambarnya hampir setinggi halaman; kecilkan tingginya di markdown. |
+| Error `Too many unprocessed floats` | Sudah dicegah via `\extrafloats{100}` di `polines_jobsheet.latex`. Kalau masih muncul pada laporan super padat, naikkan angkanya. |
+| Repo/assets terlalu besar | Kompres ulang screenshot: `python tools/compress_assets.py --apply` (ada `--out <dir>` untuk preview & `--min-psnr` untuk atur kualitas). |
 | Mau mulai dari nol | `cp templates/report_template.md raw-md/laporan-baru.md` |
 
 ---

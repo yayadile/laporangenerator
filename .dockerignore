@@ -1,0 +1,30 @@
+# Konteks build: hanya kirim file yang benar-benar dibutuhkan image.
+# (Dockerfile COPY juga eksplisit - ini memperkecil upload konteks build)
+
+# VCS / cache
+.git/
+.gitignore
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Artefak & dataset regenerable (60MB+ , tidak boleh masuk image)
+data/
+output_matkul/
+testing/
+*.log
+cookies*.txt
+~$*
+
+# Bukan bagian runtime API
+raw-md/
+tugas/
+tools/
+make_reference.py
+cli.py
+requirements-dev.txt
+README.md
+render.yaml
+.vscode/
+.idea/
