@@ -1,0 +1,22 @@
+# --- Generated / regenerable (jangan pernah di-commit) ---
+output_matkul/
+data/
+testing/
+
+# --- Python cache & virtualenv ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# --- Logs, secrets, editor junk ---
+*.log
+cookies*.txt
+~$*
+.vscode/
+.idea/
+
+# --- Coursework artifacts (bukan bagian generator) ---
+tugas/scripts/ckpt/
+tugas/scripts/metrics.json
+tugas/scripts/__pycache__/
